@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejemplo de Request</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+        }
+        .request-box {
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            display: inline-block;
+            text-align: left;
+            font-size: 16px;
+            width: 400px;
+        }
+        .request-line {
+            background: linear-gradient(to right, #7b61ff, #ff6161);
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .header {
+            background-color: #ffdf9e;
+            padding: 8px;
+            border-radius: 5px;
+            margin-top: 5px;
+            font-weight: bold;
+            color: black;
+        }
+        .crlf {
+            color: #ff6161;
+            font-weight: bold;
+            float: right;
+        }
+        .no-body {
+            background-color: #666;
+            padding: 10px;
+            text-align: center;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Ejemplo de Request</h2>
+
+<div class="request-box">
+    <div class="request-line">
+        GET <span style="color: lightblue;">/index.html</span> HTTP/1.1 <span class="crlf">CRLF</span>
+    </div>
+    <div class="header">
+        Content-Type: text/html <span class="crlf">CRLF</span>
+    </div>
+    <div class="header">
+        Accept: text/html <span class="crlf">CRLF</span>
+    </div>
+    <div class="crlf">...</div>
+    <div class="crlf">CRLF</div>
+    <div class="no-body">NO BODY</div>
+</div>
+
+</body>
+</html>
