@@ -30,82 +30,88 @@ public final class ServidorWeb {
 }
 
 final class SolicitudHttp implements Runnable {
-    final static String CRLF = "\r\n";
     private Socket socket;
 
-    // Constructor
     public SolicitudHttp(Socket socket) {
         this.socket = socket;
     }
 
-    // Implementa el método run() de la interface Runnable.
+    @Override
     public void run() {
         try {
-            proceseSolicitud();
-        } catch (Exception e) {
-            System.out.println("Error procesando la solicitud: " + e.getMessage());
-        }
-    }
+            InputStream is = socket.getInputStream();
+            OutputStream os = new BufferedOutputStream(socket.getOutputStream());
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 
-    private void proceseSolicitud() throws Exception {
-        // Referencia al stream de salida del socket.
-        OutputStream out = socket.getOutputStream();
-        PrintWriter writer = new PrintWriter(out, true);
-
-        // Referencia y filtros para el stream de entrada.
-        InputStream in = socket.getInputStream();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-
-        // Recoge y muestra las líneas de header.
-        String linea;
-        StringTokenizer tokenizer;
-        String nombre = "";
-
-        while ((linea = reader.readLine()) != null && !linea.isEmpty()) {
-
-            tokenizer = new StringTokenizer(linea, CRLF);
-            String method = tokenizer.nextToken();
-
-            if (method.equals("GET")) {
-                nombre = "." + tokenizer.nextToken();
-                System.out.println(nombre);
-                break;
+            String linea = reader.readLine();
+            if (linea == null || linea.isEmpty()) {
+                socket.close();
+                return;
             }
-        }
 
-        InputStream inputStream = ClassLoader.getSystemResourceAsStream(nombre);
+            StringTokenizer partesLinea = new StringTokenizer(linea);
+            String metodo = partesLinea.nextToken(); // Método HTTP (ej. GET)
+            String recurso = partesLinea.nextToken(); // Recurso solicitado (ej. /index.html)
 
-        if (inputStream != null) {
-            File file = new File(ClassLoader.getSystemResource(nombre).toURI());
-            long fileSize = file.length();
-            var outRequest = new BufferedOutputStream(socket.getOutputStream());
-            enviarString("HTTP/1.0 200 OK" + CRLF, outRequest);
-            enviarString("Content-Type: text/html" + CRLF, outRequest);
-            enviarString("Content-Length: " + fileSize + CRLF, outRequest);
-            enviarString(CRLF, outRequest);
-            enviarBytes(inputStream, out);
+            if (!metodo.equals("GET")) {
+                enviarError(os, 405, "Método no permitido");
+                return;
+            }
 
-            // Cierra los streams y el socket.
-            writer.close();
-            reader.close();
+//            if (recurso.equals("/")) {
+//                recurso = "/index.html"; // Página por defecto
+//            }
+
+            String nombreArchivo = recurso.substring(1);
+            File file = new File(getClass().getClassLoader().getResource(nombreArchivo).toURI());
+
+            String lineaDeEstado;
+            String lineaHeader;
+
+            if (file.exists() && !file.isDirectory()) {
+                InputStream archivoStream = new FileInputStream(file);
+                lineaDeEstado = "HTTP/1.0 200 OK\r\n";
+                lineaHeader = "Content-Type: " + contentType(nombreArchivo) + "\r\n\r\n";
+
+                os.write(lineaDeEstado.getBytes());
+                os.write(lineaHeader.getBytes());
+                enviarBytes(archivoStream, os);
+                archivoStream.close();
+            } else {
+                lineaDeEstado = "HTTP/1.0 404 Not Found\r\n";
+                lineaHeader = "Content-Type: text/html\r\n\r\n";
+
+                os.write(lineaDeEstado.getBytes());
+                os.write(lineaHeader.getBytes());
+                os.write("<html><body><h1>404 - Archivo no encontrado</h1></body></html>".getBytes());
+            }
+
+            os.flush();
             socket.close();
-
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    private static void enviarString(String line, OutputStream os) throws Exception {
-        os.write(line.getBytes(StandardCharsets.UTF_8));
-    }
-    private static void enviarBytes(InputStream fis, OutputStream os) throws Exception {
-        // Construye un buffer de 1KB para guardar los bytes cuando van hacia el socket.
+    private static void enviarBytes(InputStream fis, OutputStream os) throws IOException {
         byte[] buffer = new byte[1024];
-        int bytes = 0;
-
-        // Copia el archivo solicitado hacia el output stream del socket.
+        int bytes;
         while ((bytes = fis.read(buffer)) != -1) {
             os.write(buffer, 0, bytes);
         }
+        os.flush();
+        fis.close();
     }
+
+    private static void enviarError(OutputStream os, int codigo, String mensaje) throws IOException {
+        PrintWriter writer = new PrintWriter(os, true);
+        writer.println("HTTP/1.0 " + codigo + " " + mensaje);
+        writer.println("Content-Type: text/html\r\n");
+        writer.println("\r\n");
+        writer.println("<html><body><h1>" + codigo + " " + mensaje + "</h1></body></html>");
+        writer.flush();
+    }
+
     private static String contentType(String nombreArchivo) {
         if (nombreArchivo.endsWith(".htm") || nombreArchivo.endsWith(".html")) {
             return "text/html";
@@ -115,6 +121,12 @@ final class SolicitudHttp implements Runnable {
         }
         if (nombreArchivo.endsWith(".gif")) {
             return "image/gif";
+        }
+        if (nombreArchivo.endsWith(".css")) {
+            return "text/css";
+        }
+        if (nombreArchivo.endsWith(".js")) {
+            return "application/javascript";
         }
         return "application/octet-stream";
     }
